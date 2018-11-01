@@ -9,13 +9,12 @@ import (
 	"time"
 
 	"github.com/acronis/logf"
-	"github.com/acronis/logf/logfjson"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
 func newLogger(l logf.Level, w io.Writer) (*logf.Logger, logf.Channel) {
-	encoder := logfjson.NewEncoder(logfjson.EncoderConfig{})
+	encoder := logf.NewJSONEncoder(logf.JSONEncoderConfig{})
 	channel := logf.NewBasicChannel(logf.ChannelConfig{
 		Appender:      logf.NewWriteAppender(w, encoder),
 		ErrorAppender: logf.NewWriteAppender(os.Stderr, encoder),
