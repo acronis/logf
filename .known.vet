@@ -1,0 +1,2 @@
+# github.com/acronis/logf
+./noescape.go:13: possible misuse of unsafe.Pointer
