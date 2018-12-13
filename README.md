@@ -3,7 +3,6 @@
 [![GoDoc](https://godoc.org/github.com/acronis/logf?status.svg)](https://godoc.org/github.com/acronis/logf)
 [![Build Status](https://travis-ci.org/acronis/logf.svg?branch=master)](https://travis-ci.org/acronis/logf)
 [![Go Report Status](https://goreportcard.com/badge/github.com/acronis/logf)](https://goreportcard.com/report/github.com/acronis/logf)
-[![GoCover](https://gocover.io/_badge/github.com/acronis/logf)](https://gocover.io/github.com/acronis/logf)
 
 Faster-than-light, asynchronous, structured logger in Go with zero allocation count.
 
