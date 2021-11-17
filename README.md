@@ -1,7 +1,7 @@
 # logf
 
 [![GoDoc](https://godoc.org/github.com/acronis/logf?status.svg)](https://godoc.org/github.com/acronis/logf)
-[![Build Status](https://travis-ci.org/acronis/logf.svg?branch=master)](https://travis-ci.org/acronis/logf)
+[![Build Status](https://github.com/acronis/logf/actions/workflows/go.yml/badge.svg)](https://github.com/acronis/logf/actions/workflows/go.yml)
 [![Go Report Status](https://goreportcard.com/badge/github.com/acronis/logf)](https://goreportcard.com/report/github.com/acronis/logf)
 [![Coverage Status](https://coveralls.io/repos/github/acronis/logf/badge.svg?branch=master&service=github)](https://coveralls.io/github/acronis/logf?branch=master)
 
