@@ -3,7 +3,7 @@ package main
 import (
 	"runtime"
 
-	"github.com/acronis/logf"
+	"github.com/acronis/logf/v2"
 )
 
 func main() {

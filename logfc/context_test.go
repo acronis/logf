@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/acronis/logf"
+	"github.com/acronis/logf/v2"
 
 	"github.com/stretchr/testify/assert"
 )

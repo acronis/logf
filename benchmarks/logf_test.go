@@ -3,7 +3,7 @@ package benchmarks
 import (
 	"io/ioutil"
 
-	"github.com/acronis/logf"
+	"github.com/acronis/logf/v2"
 )
 
 func fakeFields() []logf.Field {

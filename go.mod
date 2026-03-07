@@ -1,4 +1,4 @@
-module github.com/acronis/logf
+module github.com/acronis/logf/v2
 
 go 1.21
 

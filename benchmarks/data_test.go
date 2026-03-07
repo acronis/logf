@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/acronis/logf"
+	"github.com/acronis/logf/v2"
 	"go.uber.org/zap/zapcore"
 )
 
