@@ -1,514 +1,199 @@
 package benchmarks
 
 import (
-	"bufio"
+	"context"
 	"io"
 	"log/slog"
-	"os"
 	"testing"
-
-	"github.com/acronis/logf/v2"
+	"time"
 )
 
-func newSlogLogger() *slog.Logger {
+func newSlogDiscard() *slog.Logger {
 	return slog.New(slog.NewJSONHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelDebug}))
 }
 
-func newDisabledSlogLogger() *slog.Logger {
-	return slog.New(slog.NewJSONHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
+func newSlogDiscardInfo() *slog.Logger {
+	return slog.New(slog.NewJSONHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelInfo}))
 }
 
-func slogFields() []any {
-	return []any{
-		"int", 42,
-		"string", "hello",
-		"path", "/api/v1/users",
-		"latency_us", int64(1234),
-		"ok", true,
+func newSlogDiscardWithCaller() *slog.Logger {
+	return slog.New(slog.NewJSONHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelDebug, AddSource: true}))
+}
+
+func slogTwoScalars() []slog.Attr {
+	return []slog.Attr{
+		slog.String("method", "GET"),
+		slog.Int("status", 200),
 	}
 }
 
-func fakeSlogFields() []any {
-	return []any{
-		slog.Int("int", tenInts[0]),
-		slog.Any("ints", tenInts),
-		slog.String("string", tenStrings[0]),
-		slog.Any("strings", tenStrings),
-		slog.Time("tm", tenTimes[0]),
-		slog.Any("user1", oneUser),
-		slog.Any("error", errExample),
+func slogSixScalars() []slog.Attr {
+	return []slog.Attr{
+		slog.String("method", "GET"),
+		slog.Int("status", 200),
+		slog.String("path", "/api/v1/users"),
+		slog.String("user_agent", "Mozilla/5.0"),
+		slog.String("request_id", "abc-def-123"),
+		slog.Int("size", 1024),
 	}
 }
 
-// --- Disabled path ---
+func slogSixHeavy() []slog.Attr {
+	return []slog.Attr{
+		slog.String("body", string(heavyBytes)),
+		slog.Time("timestamp", heavyTime),
+		slog.Any("ids", heavyInts64),
+		slog.Any("tags", heavyStrings),
+		slog.Duration("latency", heavyDuration),
+		slog.Any("user", map[string]any{"id": 123, "name": "alice"}),
+	}
+}
 
-func BenchmarkSlogDisabledLog(b *testing.B) {
-	logger := newDisabledSlogLogger()
+func slogTwoScalarsArgs() []any {
+	return []any{"method", "GET", "status", 200}
+}
 
+// B0: DisabledLevel
+func BenchmarkSlog_DisabledLevel(b *testing.B) {
+	logger := newSlogDiscardInfo()
+	ctx := context.Background()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		logger.Info("request handled")
+		logger.DebugContext(ctx, "request handled")
 	}
 }
 
-func BenchmarkSlogDisabledLogWithFields(b *testing.B) {
-	logger := newDisabledSlogLogger()
-
+// B1: NoFields
+func BenchmarkSlog_NoFields(b *testing.B) {
+	logger := newSlogDiscard()
+	ctx := context.Background()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		logger.Info("request handled", slogFields()...)
+		logger.InfoContext(ctx, "request handled")
 	}
 }
 
-func BenchmarkSlogDisabledCheck(b *testing.B) {
-	logger := newDisabledSlogLogger()
-
+// B2: TwoScalars
+func BenchmarkSlog_TwoScalars(b *testing.B) {
+	logger := newSlogDiscard()
+	ctx := context.Background()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if logger.Enabled(nil, slog.LevelInfo) {
-			logger.Info("request handled")
-		}
+		logger.LogAttrs(ctx, slog.LevelInfo, "request handled", slogTwoScalars()...)
 	}
 }
 
-// --- Enabled path ---
-
-func BenchmarkSlogPlainText(b *testing.B) {
-	logger := newSlogLogger()
-
+// B3: TwoScalarsInGroup
+func BenchmarkSlog_TwoScalarsInGroup(b *testing.B) {
+	logger := newSlogDiscard()
+	ctx := context.Background()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		logger.Info("request handled")
+		logger.LogAttrs(ctx, slog.LevelInfo, "request handled",
+			slog.Group("request", slog.String("method", "GET"), slog.Int("status", 200)),
+		)
 	}
 }
 
-func BenchmarkSlogTextWithFields(b *testing.B) {
-	logger := newSlogLogger()
-
+// B4: SixScalars
+func BenchmarkSlog_SixScalars(b *testing.B) {
+	logger := newSlogDiscard()
+	ctx := context.Background()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		logger.Info("request handled", slogFields()...)
+		logger.LogAttrs(ctx, slog.LevelInfo, "request handled", slogSixScalars()...)
 	}
 }
 
-func BenchmarkSlogTextWithGroupAndFields(b *testing.B) {
-	logger := newSlogLogger().WithGroup("http").With(slogFields()...)
-
+// B5: SixHeavy
+func BenchmarkSlog_SixHeavy(b *testing.B) {
+	logger := newSlogDiscard()
+	ctx := context.Background()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		logger.Info("request handled", "status", 200)
+		logger.LogAttrs(ctx, slog.LevelInfo, "request handled", slogSixHeavy()...)
 	}
 }
 
-func BenchmarkSlogTextWithAccumulatedFields(b *testing.B) {
-	logger := newSlogLogger().With(slogFields()...)
-
+// B6: ErrorField
+func BenchmarkSlog_ErrorField(b *testing.B) {
+	logger := newSlogDiscard()
+	ctx := context.Background()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		logger.Info("request handled")
+		logger.LogAttrs(ctx, slog.LevelInfo, "request handled", slog.Any("error", errExample))
 	}
 }
 
-// --- Caller ---
-
-func BenchmarkSlogPlainTextWithCaller(b *testing.B) {
-	logger := slog.New(slog.NewJSONHandler(io.Discard, &slog.HandlerOptions{
-		Level:     slog.LevelDebug,
-		AddSource: true,
-	}))
-
+// B7: WithPerCall+NoFields
+func BenchmarkSlog_WithPerCall_NoFields(b *testing.B) {
+	logger := newSlogDiscard()
+	ctx := context.Background()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		logger.Info("request handled")
+		logger.With(slogTwoScalarsArgs()...).InfoContext(ctx, "request handled")
 	}
 }
 
-func BenchmarkSlogTextWithFieldsAndCaller(b *testing.B) {
-	logger := slog.New(slog.NewJSONHandler(io.Discard, &slog.HandlerOptions{
-		Level:     slog.LevelDebug,
-		AddSource: true,
-	}))
-
+// B8: WithPerCall+TwoScalars
+func BenchmarkSlog_WithPerCall_TwoScalars(b *testing.B) {
+	logger := newSlogDiscard()
+	ctx := context.Background()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		logger.Info("request handled", slogFields()...)
+		logger.With(slogTwoScalarsArgs()...).LogAttrs(ctx, slog.LevelInfo, "request handled", slogTwoScalars()...)
 	}
 }
 
-// --- Logger.With ---
-
-func BenchmarkSlogLoggerWith(b *testing.B) {
-	logger := newSlogLogger()
-
+// B9: WithCached+NoFields
+func BenchmarkSlog_WithCached_NoFields(b *testing.B) {
+	logger := newSlogDiscard().With(slogTwoScalarsArgs()...)
+	ctx := context.Background()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = logger.With(slogFields()...)
+		logger.InfoContext(ctx, "request handled")
 	}
 }
 
-func BenchmarkSlogLoggerWithOnTop(b *testing.B) {
-	logger := newSlogLogger().With(slogFields()...)
-
+// B10: WithCached+TwoScalars
+func BenchmarkSlog_WithCached_TwoScalars(b *testing.B) {
+	logger := newSlogDiscard().With(slogTwoScalarsArgs()...)
+	ctx := context.Background()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = logger.With(slogFields()...)
+		logger.LogAttrs(ctx, slog.LevelInfo, "request handled", slogTwoScalars()...)
 	}
 }
 
-// --- Parallel ---
-
-func BenchmarkSlogParallelPlainText(b *testing.B) {
-	logger := newSlogLogger()
-
-	b.ResetTimer()
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			logger.Info("request handled")
-		}
-	})
-}
-
-// --- slog via logf handler ---
-
-func BenchmarkSlogViaLogfDiscard(b *testing.B) {
-	w, close := logf.NewChannelWriter(logf.LevelDebug, logf.ChannelWriterConfig{
-		Appender: logf.NewWriteAppender(io.Discard, logf.NewJSONEncoder.Default()),
-	})
-	defer close()
-	logger := slog.New(logf.NewSlogHandler(w))
-
+// B11: WithBoth+TwoScalars
+func BenchmarkSlog_WithBoth_TwoScalars(b *testing.B) {
+	logger := newSlogDiscard().With(slogTwoScalarsArgs()...)
+	ctx := context.Background()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		logger.Info("request handled")
+		logger.With(slogTwoScalarsArgs()...).LogAttrs(ctx, slog.LevelInfo, "request handled", slogTwoScalars()...)
 	}
 }
 
-func BenchmarkSlogViaLogfFileIO(b *testing.B) {
-	f, err := os.CreateTemp("", "sloglogf-bench-*.log")
-	if err != nil {
-		b.Fatal(err)
-	}
-	defer os.Remove(f.Name())
-	defer f.Close()
-
-	w, close := logf.NewChannelWriter(logf.LevelDebug, logf.ChannelWriterConfig{
-		Appender: logf.NewWriteAppender(f, logf.NewJSONEncoder.Default()),
-	})
-	defer close()
-	logger := slog.New(logf.NewSlogHandler(w))
-
+// B12: WithGroupCached+TwoScalars
+func BenchmarkSlog_WithGroupCached_TwoScalars(b *testing.B) {
+	logger := newSlogDiscard().WithGroup("request").With(slogTwoScalarsArgs()...)
+	ctx := context.Background()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		logger.Info("request handled")
+		logger.LogAttrs(ctx, slog.LevelInfo, "request handled", slogTwoScalars()...)
 	}
 }
 
-func BenchmarkSlogViaLogfParallelFileIO(b *testing.B) {
-	f, err := os.CreateTemp("", "sloglogf-bench-*.log")
-	if err != nil {
-		b.Fatal(err)
-	}
-	defer os.Remove(f.Name())
-	defer f.Close()
-
-	w, close := logf.NewChannelWriter(logf.LevelDebug, logf.ChannelWriterConfig{
-		Appender: logf.NewWriteAppender(f, logf.NewJSONEncoder.Default()),
-	})
-	defer close()
-	logger := slog.New(logf.NewSlogHandler(w))
-
-	b.ResetTimer()
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			logger.Info("request handled")
-		}
-	})
-}
-
-// --- Logger.Slog() bridge ---
-
-func BenchmarkLogfSlogDiscard(b *testing.B) {
-	w, close := logf.NewChannelWriter(logf.LevelDebug, logf.ChannelWriterConfig{
-		Appender: logf.NewWriteAppender(io.Discard, logf.NewJSONEncoder.Default()),
-	})
-	defer close()
-	logger := logf.NewLogger(w).WithCaller(false).Slog()
-
+// B13: Caller+TwoScalars
+func BenchmarkSlog_Caller_TwoScalars(b *testing.B) {
+	logger := newSlogDiscardWithCaller()
+	ctx := context.Background()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		logger.Info("request handled")
+		logger.LogAttrs(ctx, slog.LevelInfo, "request handled", slogTwoScalars()...)
 	}
 }
 
-func BenchmarkLogfSlogTextWithFields(b *testing.B) {
-	w, close := logf.NewChannelWriter(logf.LevelDebug, logf.ChannelWriterConfig{
-		Appender: logf.NewWriteAppender(io.Discard, logf.NewJSONEncoder.Default()),
-	})
-	defer close()
-	logger := logf.NewLogger(w).WithCaller(false).Slog()
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		logger.Info("request handled", slogFields()...)
-	}
-}
-
-func BenchmarkLogfSlogTextWithAccumulatedFields(b *testing.B) {
-	w, close := logf.NewChannelWriter(logf.LevelDebug, logf.ChannelWriterConfig{
-		Appender: logf.NewWriteAppender(io.Discard, logf.NewJSONEncoder.Default()),
-	})
-	defer close()
-	logger := logf.NewLogger(w).WithCaller(false).Slog().With(slogFields()...)
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		logger.Info("request handled")
-	}
-}
-
-func BenchmarkLogfSlogTextWithGroupAndFields(b *testing.B) {
-	w, close := logf.NewChannelWriter(logf.LevelDebug, logf.ChannelWriterConfig{
-		Appender: logf.NewWriteAppender(io.Discard, logf.NewJSONEncoder.Default()),
-	})
-	defer close()
-	logger := logf.NewLogger(w).WithCaller(false).Slog().
-		WithGroup("http").With(slogFields()...)
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		logger.Info("request handled", "status", 200)
-	}
-}
-
-func BenchmarkLogfSlogSyncPlainText(b *testing.B) {
-	w := logf.NewSyncWriter(logf.LevelDebug, logf.NewWriteAppender(io.Discard, logf.NewJSONEncoder.Default()))
-	logger := logf.NewLogger(w).WithCaller(false).Slog()
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		logger.Info("request handled")
-	}
-}
-
-func BenchmarkLogfSlogSyncTextWithFields(b *testing.B) {
-	w := logf.NewSyncWriter(logf.LevelDebug, logf.NewWriteAppender(io.Discard, logf.NewJSONEncoder.Default()))
-	logger := logf.NewLogger(w).WithCaller(false).Slog()
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		logger.Info("request handled", slogFields()...)
-	}
-}
-
-func BenchmarkLogfSlogSyncTextWithAccumulatedFields(b *testing.B) {
-	w := logf.NewSyncWriter(logf.LevelDebug, logf.NewWriteAppender(io.Discard, logf.NewJSONEncoder.Default()))
-	logger := logf.NewLogger(w).WithCaller(false).Slog().With(slogFields()...)
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		logger.Info("request handled")
-	}
-}
-
-func BenchmarkLogfSlogSyncTextWithGroupAndFields(b *testing.B) {
-	w := logf.NewSyncWriter(logf.LevelDebug, logf.NewWriteAppender(io.Discard, logf.NewJSONEncoder.Default()))
-	logger := logf.NewLogger(w).WithCaller(false).Slog().
-		WithGroup("http").With(slogFields()...)
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		logger.Info("request handled", "status", 200)
-	}
-}
-
-func BenchmarkLogfSlogBufferedFileIO(b *testing.B) {
-	f, err := os.CreateTemp("", "logfslog-bench-*.log")
-	if err != nil {
-		b.Fatal(err)
-	}
-	defer os.Remove(f.Name())
-	defer f.Close()
-
-	w, close := logf.NewChannelWriter(logf.LevelDebug, logf.ChannelWriterConfig{
-		Appender: logf.NewWriteAppender(f, logf.NewJSONEncoder.Default()),
-	})
-	defer close()
-	logger := logf.NewLogger(w).WithCaller(false).Slog()
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		logger.Info("request handled")
-	}
-}
-
-func BenchmarkLogfSlogBufferedParallelFileIO(b *testing.B) {
-	f, err := os.CreateTemp("", "logfslog-bench-*.log")
-	if err != nil {
-		b.Fatal(err)
-	}
-	defer os.Remove(f.Name())
-	defer f.Close()
-
-	w, close := logf.NewChannelWriter(logf.LevelDebug, logf.ChannelWriterConfig{
-		Appender: logf.NewWriteAppender(f, logf.NewJSONEncoder.Default()),
-	})
-	defer close()
-	logger := logf.NewLogger(w).WithCaller(false).Slog()
-
-	b.ResetTimer()
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			logger.Info("request handled")
-		}
-	})
-}
-
-func BenchmarkLogfSlogFileIO(b *testing.B) {
-	f, err := os.CreateTemp("", "logfslog-bench-*.log")
-	if err != nil {
-		b.Fatal(err)
-	}
-	defer os.Remove(f.Name())
-	defer f.Close()
-
-	w := logf.NewSyncWriter(logf.LevelDebug, logf.NewWriteAppender(f, logf.NewJSONEncoder.Default()))
-	logger := logf.NewLogger(w).WithCaller(false).Slog()
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		logger.Info("request handled")
-	}
-}
-
-func BenchmarkLogfSlogParallelFileIO(b *testing.B) {
-	f, err := os.CreateTemp("", "logfslog-bench-*.log")
-	if err != nil {
-		b.Fatal(err)
-	}
-	defer os.Remove(f.Name())
-	defer f.Close()
-
-	w := logf.NewSyncWriter(logf.LevelDebug, logf.NewWriteAppender(f, logf.NewJSONEncoder.Default()))
-	logger := logf.NewLogger(w).WithCaller(false).Slog()
-
-	b.ResetTimer()
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			logger.Info("request handled")
-		}
-	})
-}
-
-// --- Buffered File I/O ---
-
-func BenchmarkSlogBufferedFileIOWithFields(b *testing.B) {
-	f, err := os.CreateTemp("", "slog-bench-*.log")
-	if err != nil {
-		b.Fatal(err)
-	}
-	defer os.Remove(f.Name())
-	defer f.Close()
-
-	bw := bufio.NewWriterSize(f, 4096)
-	defer bw.Flush()
-	logger := slog.New(slog.NewJSONHandler(bw, &slog.HandlerOptions{Level: slog.LevelDebug})).With(slogFields()...)
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		logger.Info("request handled")
-	}
-}
-
-func BenchmarkSlogBufferedParallelFileIOWithFields(b *testing.B) {
-	f, err := os.CreateTemp("", "slog-bench-*.log")
-	if err != nil {
-		b.Fatal(err)
-	}
-	defer os.Remove(f.Name())
-	defer f.Close()
-
-	bw := bufio.NewWriterSize(f, 4096)
-	defer bw.Flush()
-	logger := slog.New(slog.NewJSONHandler(bw, &slog.HandlerOptions{Level: slog.LevelDebug})).With(slogFields()...)
-
-	b.ResetTimer()
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			logger.Info("request handled")
-		}
-	})
-}
-
-func BenchmarkSlogBufferedFileIO(b *testing.B) {
-	f, err := os.CreateTemp("", "slog-bench-*.log")
-	if err != nil {
-		b.Fatal(err)
-	}
-	defer os.Remove(f.Name())
-	defer f.Close()
-
-	bw := bufio.NewWriterSize(f, 4096)
-	defer bw.Flush()
-	logger := slog.New(slog.NewJSONHandler(bw, &slog.HandlerOptions{Level: slog.LevelDebug}))
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		logger.Info("request handled")
-	}
-}
-
-func BenchmarkSlogBufferedParallelFileIO(b *testing.B) {
-	f, err := os.CreateTemp("", "slog-bench-*.log")
-	if err != nil {
-		b.Fatal(err)
-	}
-	defer os.Remove(f.Name())
-	defer f.Close()
-
-	bw := bufio.NewWriterSize(f, 4096)
-	defer bw.Flush()
-	logger := slog.New(slog.NewJSONHandler(bw, &slog.HandlerOptions{Level: slog.LevelDebug}))
-
-	b.ResetTimer()
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			logger.Info("request handled")
-		}
-	})
-}
-
-// --- File I/O ---
-
-func BenchmarkSlogFileIO(b *testing.B) {
-	f, err := os.CreateTemp("", "slog-bench-*.log")
-	if err != nil {
-		b.Fatal(err)
-	}
-	defer os.Remove(f.Name())
-	defer f.Close()
-
-	logger := slog.New(slog.NewJSONHandler(f, &slog.HandlerOptions{Level: slog.LevelDebug}))
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		logger.Info("request handled")
-	}
-}
-
-func BenchmarkSlogParallelFileIO(b *testing.B) {
-	f, err := os.CreateTemp("", "slog-bench-*.log")
-	if err != nil {
-		b.Fatal(err)
-	}
-	defer os.Remove(f.Name())
-	defer f.Close()
-
-	logger := slog.New(slog.NewJSONHandler(f, &slog.HandlerOptions{Level: slog.LevelDebug}))
-
-	b.ResetTimer()
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			logger.Info("request handled")
-		}
-	})
-}
+// Suppress unused import warning.
+var _ = time.Now
