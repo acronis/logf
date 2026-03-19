@@ -1,9 +1,9 @@
 # logf
 
-[![GoDoc](https://godoc.org/github.com/acronis/logf?status.svg)](https://godoc.org/github.com/acronis/logf)
+[![Go Reference](https://pkg.go.dev/badge/github.com/acronis/logf/v2.svg)](https://pkg.go.dev/github.com/acronis/logf/v2)
 [![Build Status](https://github.com/acronis/logf/actions/workflows/go.yml/badge.svg)](https://github.com/acronis/logf/actions/workflows/go.yml)
-[![Go Report Status](https://goreportcard.com/badge/github.com/acronis/logf)](https://goreportcard.com/report/github.com/acronis/logf)
-[![Coverage Status](https://codecov.io/gh/acronis/logf/branch/master/graph/badge.svg)](https://codecov.io/gh/acronis/logf)
+[![Go Report Card](https://goreportcard.com/badge/github.com/acronis/logf/v2)](https://goreportcard.com/report/github.com/acronis/logf/v2)
+[![codecov](https://codecov.io/gh/acronis/logf/branch/master/graph/badge.svg)](https://codecov.io/gh/acronis/logf)
 
 Structured logging for Go — context-aware, slog-native, fast.
 
