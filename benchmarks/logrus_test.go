@@ -24,7 +24,7 @@ func newLogrusDiscardInfo() *logrus.Logger {
 	return l
 }
 
-// logrus (ssgreg fork) has no ReportCaller — B13 Caller skipped below
+// logrus: B13 Caller is not measured
 
 func logrusTwoScalars() logrus.Fields {
 	return logrus.Fields{
@@ -168,7 +168,7 @@ func BenchmarkLogrus_WithBoth_TwoScalars(b *testing.B) {
 
 // B12: WithGroupCached+TwoScalars — skipped, logrus has no native group support
 
-// B13: Caller+TwoScalars — skipped, ssgreg/logrus fork has no ReportCaller
+// B13: Caller+TwoScalars is not measured for logrus
 
 // --- A: With micro-benchmarks (no log call) ---
 
