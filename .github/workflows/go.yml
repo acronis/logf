@@ -2,7 +2,7 @@ name: Go
 
 on:
   push:
-    branches: [master]
+    branches: [main]
   pull_request:
 
 permissions:
@@ -13,17 +13,13 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go: ["1.22.x", "1.23.x"]
+        go: [oldstable, stable]
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-go@v5
       with:
         go-version: ${{ matrix.go }}
-    - run: go test -race -coverprofile=coverage.out ./...
-    - uses: codecov/codecov-action@v5
-      if: matrix.go == '1.23.x'
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
+    - run: go test -race ./...
 
   lint:
     runs-on: ubuntu-latest
