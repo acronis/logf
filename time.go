@@ -187,5 +187,5 @@ func appendUint(b []byte, v uint64) []byte {
 func noescape(p unsafe.Pointer) unsafe.Pointer {
 	x := uintptr(p)
 
-	return unsafe.Pointer(x ^ 0) //nolint:staticcheck // intentional no-op to fool escape analysis
+	return unsafe.Pointer(x ^ 0) //nolint:govet,staticcheck // intentional no-op to fool escape analysis
 }
