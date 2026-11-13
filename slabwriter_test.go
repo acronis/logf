@@ -435,8 +435,9 @@ func TestSlabWriterErrWriterPanicDoesNotCrashIoLoop(t *testing.T) {
 	go func() { done <- sw.Close() }()
 
 	select {
-	case _ = <-done: // the Close error does not matter here, only that it returns
-		// ioLoop survived — test passes.
+	case err := <-done:
+		// ioLoop survived — test passes. The Close error is irrelevant here.
+		t.Logf("Close returned: %v", err)
 	case <-time.After(3 * time.Second):
 		t.Fatal("ioLoop appears dead — Close hung (errW panic crashed ioLoop)")
 	}
