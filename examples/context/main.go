@@ -29,7 +29,10 @@ func main() {
 	mux.HandleFunc("/orders", handleOrder)
 
 	fmt.Println("Listening on :8080")
-	http.ListenAndServe(":8080", requestIDMiddleware(mux))
+	if err := http.ListenAndServe(":8080", requestIDMiddleware(mux)); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 }
 
 // requestIDMiddleware shows two ways to add fields to context:

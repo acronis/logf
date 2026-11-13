@@ -105,7 +105,7 @@ func (b *LoggerBuilder) Build() *Logger {
 	}
 
 	// Handler pipeline.
-	var h Handler = NewSyncHandler(b.level, w, enc)
+	h := NewSyncHandler(b.level, w, enc)
 	if b.context {
 		h = NewContextHandler(h, b.sources...)
 	}

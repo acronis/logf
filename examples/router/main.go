@@ -45,7 +45,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	defer closeFn() // flushes file, syncs, closes SlabWriter
+	defer func() { _ = closeFn() }() // flushes file, syncs, closes SlabWriter
 
 	// Wrap with ContextHandler for request-scoped fields.
 	handler := logf.NewContextHandler(router)
